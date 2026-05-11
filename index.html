@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo Desk, Shared Moments</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        :root {
+            --rotateX: 0deg;
+            --rotateY: 0deg;
+            --bg-color: #f7f5f0;
+            --text-main: #1a1a1a;
+            --text-sub: #555555;
+            --btn-dark: #3a3a3a;
+            --btn-light: #d9d9d9;
+            --gradient-start: #cf9b82; 
+            --gradient-end: #ebdcd0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- 视差浮动光点 --- */
+        .ambient-orb { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.5; z-index: 0; pointer-events: none; }
+        .orb-1 { width: 300px; height: 300px; background: #e0d8c8; top: 10%; left: 20%; }
+        .orb-2 { width: 400px; height: 400px; background: #ffffff; bottom: 10%; right: 15%; }
+
+        /* --- 屏幕通用结构 --- */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;
+        }
+
+        /* ================= 屏幕 1 & 2：启动页与登录页 (保留原有样式) ================= */
+        .card-container { perspective: 1000px; }
+        .glass-card { width: 320px; height: 320px; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 40px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05), inset 0 2px 0 rgba(255, 255, 255, 0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotateX(var(--rotateX)) rotateY(var(--rotateY)); transition: transform 0.1s ease-out; transform-style: preserve-3d; }
+        .dog-svg-container { width: 200px; height: 120px; transform: translateZ(30px); }
+        .dog-path { fill: none; stroke: #000; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1000; stroke-dashoffset: 1000; }
+        .logo-text { margin-top: 20px; font-size: 24px; font-weight: 800; font-style: italic; transform: translateZ(20px); display: flex; }
+        .logo-char { opacity: 0; transform: translateY(20px); filter: blur(10px); }
+        .bottom-text-container { margin-top: 60px; text-align: center; }
+        .motto { opacity: 0; transform: translateY(15px); }
+        .motto-cn { font-size: 16px; color: var(--text-main); margin-bottom: 8px; letter-spacing: 1px; }
+        .motto-en { font-size: 18px; font-weight: bold; color: var(--text-main); font-family: serif; }
+
+        #screen-login { display: none; opacity: 0; padding-bottom: 20px; }
+        .robot-hero-img { width: 320px; height: 320px; object-fit: cover; border-radius: 40px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1); background-color: #e8e8e8; }
+        .login-ui-container { margin-top: 40px; display: flex; flex-direction: column; align-items: center; width: 320px; }
+        .agreement-label { display: flex; align-items: center; font-size: 13px; color: var(--text-sub); cursor: pointer; margin-bottom: 24px; }
+        .agreement-label input { display: none; }
+        .custom-checkbox { width: 18px; height: 18px; border: 1.5px solid #000; border-radius: 50%; margin-right: 10px; position: relative; transition: all 0.3s ease; }
+        .agreement-label input:checked + .custom-checkbox { background-color: #000; border-color: #000; }
+        .custom-checkbox::after { content: ''; position: absolute; top: 48%; left: 50%; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: translate(-50%, -50%) rotate(45deg) scale(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .agreement-label input:checked + .custom-checkbox::after { transform: translate(-50%, -55%) rotate(45deg) scale(1); }
+        .btn { width: 100%; height: 52px; border-radius: 26px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease; }
+        .btn:hover { transform: scale(1.03); } .btn:active { transform: scale(0.98); }
+        .btn-wechat { background-color: var(--btn-dark); color: #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+        .btn-wechat svg { margin-right: 10px; fill: currentColor; width: 22px; height: 22px; }
+        .btn-phone { background-color: var(--btn-light); color: #000; }
+
+        .toast-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26, 26, 26, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 24px 40px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; color: white; z-index: 1000; opacity: 0; pointer-events: none; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+        .toast-check-svg { width: 48px; height: 48px; margin-bottom: 12px; }
+        .toast-path { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 100; }
+        .toast-text { font-size: 16px; font-weight: 500; letter-spacing: 1px; }
+
+        /* ================= 屏幕 3：主控台界面 ================= */
+        #screen-main { display: none; opacity: 0; flex-direction: column; justify-content: flex-start; padding: 0; width: 100%; height: 100%; }
+        .header-container { width: 100%; padding-top: max(20px, env(safe-area-inset-top)); padding-left: 24px; padding-right: 24px; display: flex; align-items: center; height: max(70px, calc(50px + env(safe-area-inset-top))); z-index: 20; flex-shrink: 0; }
+        .top-bar { cursor: pointer; display: flex; align-items: center; }
+        .btn-back svg { width: 32px; height: 32px; fill: var(--btn-dark); transition: transform 0.2s; }
+        .btn-back:hover svg { transform: translateX(-4px); }
+
+        .main-content-wrapper { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: calc(90px + env(safe-area-inset-bottom)); padding-left: 24px; padding-right: 24px; overflow-y: auto; }
+        .main-menu { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 340px; }
+        .gradient-btn { background: linear-gradient(to right, var(--gradient-start), var(--gradient-end)); border-radius: 28px; padding: 18px 24px; display: flex; align-items: center; border: none; cursor: pointer; box-shadow: 0 10px 20px rgba(207, 155, 130, 0.2); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease; position: relative; overflow: hidden; }
+        .gradient-btn:hover { transform: scale(1.04); box-shadow: 0 14px 28px rgba(207, 155, 130, 0.3); }
+        .gradient-btn:active { transform: scale(0.98); }
+        .gradient-btn .icon-box { margin-right: 14px; display: flex; align-items: center; }
+        .gradient-btn svg.icon-svg { width: 30px; height: 30px; stroke: #fff; fill: none; stroke-width: 1.5; }
+        .text-group { display: flex; align-items: baseline; }
+        .btn-text-cn { color: #fff; font-size: 22px; font-weight: 700; letter-spacing: 1.5px; margin-right: 8px; }
+        .btn-text-en { color: rgba(255, 255, 255, 0.95); font-size: 13px; font-weight: 500; font-family: -apple-system, sans-serif; letter-spacing: 0.5px; }
+
+        .bottom-tab-bar { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(247, 245, 240, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(0, 0, 0, 0.04); display: flex; justify-content: space-around; align-items: center; padding-top: 14px; padding-bottom: max(16px, env(safe-area-inset-bottom)); z-index: 30; }
+        .tab-item { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 33.33%; cursor: pointer; color: #a0a0a0; transition: color 0.3s; }
+        .tab-item.active { color: var(--btn-dark); }
+        .tab-item svg { width: 24px; height: 24px; stroke: currentColor; fill: none; margin-bottom: 4px; stroke-width: 2; transition: transform 0.2s; }
+        .tab-item.active svg { transform: scale(1.1); stroke-width: 2.2; }
+        .tab-item span { font-size: 11px; font-weight: 600; }
+
+        /* ================= 屏幕 4：互动喂食游戏 ================= */
+        #screen-interaction {
+            display: none; opacity: 0; flex-direction: column; width: 100%; height: 100%;
+        }
+
+        .interact-back-btn {
+            position: absolute;
+            top: max(20px, env(safe-area-inset-top));
+            left: 24px;
+            z-index: 50;
+            cursor: pointer;
+            padding: 8px;
+        }
+        .interact-back-btn svg {
+            width: 32px;
+            height: 32px;
+            fill: var(--btn-dark);
+            transition: transform 0.2s;
+        }
+        .interact-back-btn:hover svg {
+            transform: translateX(-4px);
+        }
+
+        /* 游戏骨头掉落主区域 */
+        .game-area {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden; z-index: 10;
+        }
+
+        /* 生成的每一个骨头容器 */
+        .bone-item {
+            position: absolute; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; 
+            touch-action: none; /* 彻底屏蔽双击缩放和滑动等默认行为，实现真正的 0 延迟 */
+            user-select: none; -webkit-user-select: none;
+            transform-origin: center center;
+        }
+        .bone-item svg { width: 100%; height: 100%; pointer-events: none; }
+
+        /* 底部计分 UI 区 */
+        .score-ui-wrapper {
+            position: absolute;
+            bottom: max(30px, calc(10px + env(safe-area-inset-bottom)));
+            left: 0; width: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            z-index: 20; pointer-events: none; /* 鼠标事件穿透，防止挡住下面的骨头 */
+        }
+        .score-capsule {
+            background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
+            border-radius: 40px; padding: 16px 40px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 25px rgba(207, 155, 130, 0.3); margin-bottom: 12px;
+        }
+        .score-capsule span { color: #fff; font-size: 26px; font-weight: 800; letter-spacing: 2px; }
+        #mood-score { display: inline-block; min-width: 26px; text-align: center; } /* 给数字留好空间方便回弹 */
+        .score-hint { color: var(--text-sub); font-size: 13px; font-weight: 600; letter-spacing: 0.5px; }
+
+        /* ================= 视图层解耦设计 ================= */ 
+         .view-container { 
+             flex: 1; width: 100%; position: relative; 
+             padding-bottom: calc(90px + env(safe-area-inset-bottom)); 
+         } 
+         
+         .view-content { 
+             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+             display: flex; flex-direction: column; align-items: center; justify-content: center; 
+             padding: 0 24px; visibility: hidden; opacity: 0; pointer-events: none; 
+             overflow-y: auto; overflow-x: hidden; 
+         } 
+         
+         .view-content.active { 
+             visibility: visible; opacity: 1; pointer-events: auto; 
+         } 
+ 
+         /* ================= 状态视图 (View-Status) UI ================= */ 
+         .status-hero-img { 
+             width: 240px; height: 240px; border-radius: 36px; object-fit: cover; 
+             box-shadow: 0 12px 30px rgba(0,0,0,0.08); background-color: #e8e8e8; 
+         } 
+ 
+         .status-text { 
+             margin-top: 26px; text-align: center; color: var(--text-main); 
+             font-size: 20px; line-height: 1.6; font-weight: 500; letter-spacing: 1px; 
+         } 
+ 
+         .status-grid { 
+             display: grid; grid-template-columns: 1fr 1fr; gap: 20px; 
+             width: 100%; max-width: 320px; margin-top: 36px; 
+         } 
+ 
+         .mode-btn { 
+             aspect-ratio: 1 / 1; border-radius: 28px; border: none; 
+             background: #dac6b4; 
+             display: flex; flex-direction: column; align-items: center; justify-content: center; 
+             gap: 12px; cursor: pointer; box-shadow: 0 8px 20px rgba(207, 155, 130, 0.15); 
+             transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease; 
+             -webkit-tap-highlight-color: transparent; 
+         } 
+ 
+         .mode-btn:active { 
+             transform: scale(0.94); 
+             box-shadow: 0 4px 10px rgba(207, 155, 130, 0.1); 
+         } 
+ 
+         .mode-icon { width: 44px; height: 44px; stroke: #fff; fill: none; } 
+         .mode-btn span { color: var(--text-main); font-size: 15px; font-weight: 700; letter-spacing: 0.5px; }
+
+         /* ================= 屏幕 5：沉浸模式 UI 逻辑 ================= */ 
+         #screen-immersive { 
+             background-color: #000; 
+             clip-path: circle(0% at 50% 50%); 
+             -webkit-clip-path: circle(0% at 50% 50%); 
+         } 
+ 
+         .landscape-container { 
+             position: absolute; 
+             top: 50%; 
+             left: 50%; 
+             width: 100vh; 
+             height: 100vw; 
+             transform: translate(-50%, -50%) rotate(90deg); 
+             background-color: #000; 
+             overflow: hidden; 
+             display: flex; 
+             align-items: center; 
+             justify-content: center; 
+         } 
+ 
+         .immersive-back-btn { 
+             position: absolute; 
+             bottom: 24px; 
+             left: 24px; 
+             z-index: 110; 
+             cursor: pointer; 
+             padding: 12px; 
+             background: rgba(255,255,255,0.1); 
+             border-radius: 50%; 
+             backdrop-filter: blur(10px); 
+             transition: background 0.3s; 
+         } 
+         .immersive-back-btn:active { background: rgba(255,255,255,0.3); } 
+         
+         .immersive-back-btn svg { 
+             width: 30px; height: 30px; 
+             transform: rotate(270deg); 
+         } 
+ 
+         .immersive-subview { 
+             position: absolute; 
+             top: 0; left: 0; width: 100%; height: 100%; 
+             display: flex; align-items: center; justify-content: center; 
+         } 
+ 
+         .face-image { 
+             position: absolute; 
+             width: auto; 
+             height: 55%; 
+             max-width: 80%; 
+             object-fit: contain; 
+         } 
+ 
+         #clock-time { 
+             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+             font-size: 26vw; 
+             font-weight: 800; 
+             color: #fff; 
+             letter-spacing: 6px; 
+             text-shadow: 0 0 40px rgba(255, 255, 255, 0.15); 
+         }
+
+         /* ================= 沉浸互动模式：额外特效扩展 ================= */ 
+         /* 独立粒子容器，放在最外层，绝对屏蔽屏幕旋转带来的坐标偏移 */ 
+         #particle-container { 
+             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+             pointer-events: none; z-index: 200; overflow: hidden; 
+         } 
+         
+         .star-particle { 
+             position: absolute; width: 24px; height: 24px; 
+             transform-origin: center center; 
+         }
+
+         /* ================= 状态视图 (View-Settings) 专属样式 ================= */ 
+         #view-settings { 
+             background-color: #C38D73; 
+             top: calc(-1 * max(70px, calc(50px + env(safe-area-inset-top)))); 
+             height: calc(100% + max(70px, calc(50px + env(safe-area-inset-top)))); 
+             padding-top: calc(max(70px, calc(50px + env(safe-area-inset-top))) + 30px); 
+             justify-content: flex-start; 
+         } 
+
+         .user-profile { 
+             display: flex; align-items: center; gap: 20px; 
+             width: 100%; max-width: 340px; margin-bottom: 40px; 
+         } 
+
+         .user-avatar { 
+             width: 80px; height: 80px; border-radius: 50%; 
+             border: 4px solid #ffffff; overflow: hidden; 
+             background-color: #fff; flex-shrink: 0; 
+             box-shadow: 0 10px 20px rgba(138, 90, 65, 0.2); 
+         } 
+
+         .user-name { 
+             color: #ffffff; font-size: 24px; font-weight: bold; 
+             font-family: -apple-system, sans-serif; letter-spacing: 1px; 
+         } 
+
+         .settings-menu { 
+             display: flex; flex-direction: column; gap: 16px; 
+             width: 100%; max-width: 340px; 
+         } 
+
+         .settings-btn { 
+             background-color: rgba(247, 245, 240, 0.4); 
+             border-radius: 20px; padding: 18px 24px; border: none; 
+             display: flex; align-items: center; gap: 16px; cursor: pointer; 
+             transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease; 
+             -webkit-tap-highlight-color: transparent; 
+         } 
+
+         .settings-btn:active { 
+             transform: scale(0.96); 
+             background-color: rgba(247, 245, 240, 0.6); 
+         } 
+
+         .settings-icon { 
+             width: 28px; height: 28px; stroke: #8A5A41; fill: none; 
+         } 
+
+         .settings-btn span { 
+             color: #8A5A41; font-size: 16px; font-weight: 600; letter-spacing: 0.5px; 
+         } 
+
+         /* 设置页面隐藏返回按钮 */ 
+         #view-settings.active ~ .btn-back, 
+         #screen-main:has(#view-settings.active) .btn-back { 
+             display: none; 
+         }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-orb orb-1" id="orb1"></div>
+    <div class="ambient-orb orb-2" id="orb2"></div>
+
+    <div class="toast-overlay" id="toastMsg">
+        <svg class="toast-check-svg" viewBox="0 0 50 50">
+            <circle cx="25" cy="25" r="22" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"></circle>
+            <path class="toast-path" d="M15 26l7 7 14-14"></path>
+        </svg>
+        <span class="toast-text">登陆成功</span>
+    </div>
+
+    <div id="screen-splash" class="screen">
+        <div class="card-container">
+            <div class="glass-card" id="glassCard">
+                <div class="dog-svg-container">
+                    <svg viewBox="0 0 200 100" width="100%" height="100%">
+                        <path class="dog-path" d="M 10 50 C 20 20, 50 10, 60 40 C 70 70, 90 70, 100 50 C 120 10, 160 20, 170 30 C 180 40, 190 40, 190 50 C 190 60, 170 90, 150 80 C 130 70, 140 50, 120 50 C 100 50, 80 80, 60 80 C 40 80, 20 70, 10 50 Z" />
+                    </svg>
+                </div>
+                <div class="logo-text" id="logoText">Companion Dog</div>
+            </div>
+        </div>
+        <div class="bottom-text-container">
+            <div class="motto motto-cn">独处办公，也有被陪伴的感觉。</div>
+            <div class="motto motto-en">Solo desk, shared moments.</div>
+        </div>
+    </div>
+
+    <div id="screen-login" class="screen">
+        <img src="./robot_dog.jpg" alt="Robot Dog" class="robot-hero-img login-anim-hero">
+        <div class="login-ui-container">
+            <label class="agreement-label login-anim-ui">
+                <input type="checkbox" id="agreeCheck">
+                <div class="custom-checkbox"></div>
+                <span>我已阅读并同意用户协议和隐私政策</span>
+            </label>
+            <button class="btn btn-wechat login-anim-ui login-trigger">
+                <svg viewBox="0 0 1024 1024"><path d="M682.666667 853.333333c-33.6 0-66.24-5.973333-96.64-16.64l-117.653334 58.773334 32-108.48c-66.24-43.093333-109.12-107.413333-109.12-178.986667 0-129.6 130.666667-234.666667 291.413334-234.666667s291.413333 105.066667 291.413333 234.666667-130.666667 234.666667-291.413333 234.666667z m-126.933334-320c-23.466667 0-42.666667 19.2-42.666666 42.666667s19.2 42.666667 42.666666 42.666667 42.666667-19.2 42.666667-42.666667-19.2-42.666667-42.666667-42.666667z m253.866667 0c-23.466667 0-42.666667 19.2-42.666667 42.666667s19.2 42.666667 42.666667 42.666667 42.666667-19.2 42.666667-42.666667-19.2-42.666667-42.666667-42.666667z M367.68 644.266667c-2.346667 0-4.693333-0.106667-6.933333-0.426667-75.946667-7.36-147.2-41.28-200.426667-95.68C103.146667 489.6 72.853333 410.88 72.853333 328.533333c0-141.44 148.693333-256 331.733334-256 182.933333 0 331.626667 114.56 331.626666 256 0 17.6-2.026667 34.666667-5.973333 51.093334-21.76-13.44-45.76-24.96-70.826667-33.92 5.013333-11.2 7.786667-23.893333 7.786667-37.12 0-94.293333-108.906667-170.666667-243.306667-170.666667S179.2 214.24 179.2 308.533333c0 53.653333 30.613333 103.68 81.6 138.666667l-26.666667 90.346667 98.24-48.96c21.866667 6.4 45.44 10.133333 70.08 10.56-4.693333 16-8.213333 32.533333-10.453333 49.386666 0 0.106667 0 0.32-0.106667 0.426667-7.893333-0.106667-16-0.32-24.213333-0.32z m-79.36-410.666667c-17.6 0-32 14.4-32 32s14.4 32 32 32 32-14.4 32-32-14.4-32-32-32z m190.4 0c-17.6 0-32 14.4-32 32s14.4 32 32 32 32-14.4 32-32-14.4-32-32-32z" /></svg>
+                微信登陆或注册
+            </button>
+            <button class="btn btn-phone login-anim-ui login-trigger">手机号登陆注册</button>
+        </div>
+    </div>
+
+    <div id="screen-main" class="screen"> 
+         
+         <div class="header-container main-anim-top"> 
+             <div class="top-bar btn-back"> 
+                 <svg viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg> 
+             </div> 
+         </div> 
+ 
+         <div class="view-container"> 
+             
+             <div id="view-home" class="view-content active"> 
+                 <div class="main-menu"> 
+                     <button id="btn-interaction" class="gradient-btn main-anim-btn"> 
+                         <div class="icon-box"><svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3c-3.5 0-6 4-6 9s2.5 9 6 9M12 3c3.5 0 6 4 6 9s-2.5 9-6 9M3 12h18"/></svg></div> 
+                         <div class="text-group"><span class="btn-text-cn">互动</span><span class="btn-text-en">Interaction</span></div> 
+                     </button> 
+                     <button class="gradient-btn main-anim-btn"> 
+                         <div class="icon-box"><svg class="icon-svg" viewBox="0 0 24 24"><circle cx="10" cy="12" r="7"/><circle cx="10" cy="9" r="1.5" fill="#fff"/><circle cx="10" cy="15" r="1.5" fill="#fff"/><circle cx="7" cy="12" r="1.5" fill="#fff"/><circle cx="13" cy="12" r="1.5" fill="#fff"/><path d="M10 19h10"/></svg></div> 
+                         <div class="text-group"><span class="btn-text-cn">表演</span><span class="btn-text-en">Performance</span></div> 
+                     </button> 
+                     <button class="gradient-btn main-anim-btn"> 
+                         <div class="icon-box"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg></div> 
+                         <div class="text-group"><span class="btn-text-cn">呼唤</span><span class="btn-text-en">Summon</span></div> 
+                     </button> 
+                 </div> 
+             </div> 
+ 
+             <div id="view-status" class="view-content"> 
+                 <img src="./robot_dog.jpg" class="status-hero-img" alt="Robot Dog Status"> 
+                 
+                 <div class="status-text"> 
+                     <div>目前电量：<span id="battery-counter">0</span>%</div> 
+                     <div>心情：开心</div> 
+                 </div> 
+ 
+                 <div class="status-grid"> 
+                     <button class="mode-btn"> 
+                         <svg viewBox="0 0 24 24" class="mode-icon"> 
+                             <circle cx="12" cy="12" r="10" stroke-width="2"></circle> 
+                             <polyline points="12 6 12 12 16 14" stroke-width="2"></polyline> 
+                         </svg> 
+                         <span>专注模式</span> 
+                     </button> 
+                     <button class="mode-btn"> 
+                         <svg viewBox="0 0 24 24" class="mode-icon"> 
+                             <path d="M8 14s1.5 2 4 2 4-2 4-2" stroke-width="1.5"/> 
+                             <line x1="9" y1="9" x2="9.01" y2="9" stroke-width="2.5" stroke-linecap="round"/> 
+                             <line x1="15" y1="9" x2="15.01" y2="9" stroke-width="2.5" stroke-linecap="round"/> 
+                             <path d="M18 10c1.5-1 3-2 3-4s-2-2-4-1" stroke-width="1.5"/> 
+                             <path d="M6 10c-1.5-1-3-2-3-4s2-2 4-1" stroke-width="1.5"/> 
+                             <circle cx="12" cy="12" r="9" stroke-width="1.5"/> 
+                         </svg> 
+                         <span>陪伴模式</span> 
+                     </button> 
+                 </div> 
+             </div> 
+
+             <div id="view-settings" class="view-content"> 
+
+                 <div class="user-profile settings-anim-item"> 
+                     <div class="user-avatar"> 
+                         <svg viewBox="0 0 100 100" width="100%" height="100%"> 
+                             <circle cx="50" cy="50" r="46" fill="#FCE4D6"/> 
+                             <path d="M30 45 Q35 40 40 45" stroke="#8A5A41" stroke-width="4" stroke-linecap="round" fill="none"/> 
+                             <path d="M60 45 Q65 40 70 45" stroke="#8A5A41" stroke-width="4" stroke-linecap="round" fill="none"/> 
+                             <circle cx="35" cy="50" r="4" fill="#8A5A41"/> 
+                             <circle cx="65" cy="50" r="4" fill="#8A5A41"/> 
+                             <path d="M40 65 Q50 75 60 65" stroke="#8A5A41" stroke-width="4" stroke-linecap="round" fill="none"/> 
+                             <circle cx="20" cy="55" r="5" fill="#FFB6C1" opacity="0.6"/> 
+                             <circle cx="80" cy="55" r="5" fill="#FFB6C1" opacity="0.6"/> 
+                         </svg> 
+                     </div> 
+                     <div class="user-name">用户1234</div> 
+                 </div> 
+
+                 <div class="settings-menu"> 
+                     <button class="settings-btn settings-anim-item"> 
+                         <svg class="settings-icon" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"> 
+                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/> 
+                         </svg> 
+                         <span>个人信息</span> 
+                     </button> 
+
+                     <button class="settings-btn settings-anim-item"> 
+                         <svg class="settings-icon" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"> 
+                             <rect x="3" y="10" width="18" height="8" rx="2"/> 
+                             <path d="M6 18v3M18 18v3M8 10V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/> 
+                             <circle cx="12" cy="14" r="1.5" fill="#8A5A41"/> 
+                         </svg> 
+                         <span>机器狗信息</span> 
+                     </button> 
+
+                     <button class="settings-btn settings-anim-item"> 
+                         <svg class="settings-icon" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"> 
+                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/> 
+                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/> 
+                         </svg> 
+                         <span>帮助与反馈</span> 
+                     </button> 
+
+                     <button class="settings-btn settings-anim-item"> 
+                         <svg class="settings-icon" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"> 
+                             <circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/> 
+                         </svg> 
+                         <span>其他</span> 
+                     </button> 
+                 </div> 
+
+             </div> 
+
+         </div> 
+
+         <div class="bottom-tab-bar main-anim-tab"> 
+             <div class="tab-item active" data-target="0"> 
+                 <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> 
+                 <span>首页</span> 
+             </div> 
+             <div class="tab-item" data-target="1"> 
+                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> 
+                 <span>状态</span> 
+             </div> 
+             <div class="tab-item" data-target="2"> 
+                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> 
+                 <span>设置</span> 
+             </div> 
+         </div> 
+     </div>
+
+    <div id="screen-interaction" class="screen">
+        
+        <div id="btn-interact-back" class="interact-back-btn">
+            <svg viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
+        </div>
+        
+        <div class="game-area" id="gameArea"></div>
+
+        <div class="score-ui-wrapper interact-anim-score">
+            <div class="score-capsule">
+                <span>心情值 +<span id="mood-score">0</span></span>
+            </div>
+            <div class="score-hint">点击骨头给它喂食，增加心情值</div>
+        </div>
+
+    </div>
+
+    <div id="screen-immersive" class="screen" style="display: none; z-index: 100;"> 
+         
+         <div class="landscape-container" id="landscapeArea"> 
+             
+             <div id="btn-immersive-back" class="immersive-back-btn"> 
+                 <svg viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" fill="#fff"/></svg> 
+             </div> 
+ 
+             <div id="face-view" class="immersive-subview"> 
+                 <img id="face-img-bg" class="face-image" src="./face1.png" alt="Face Background"> 
+                 <img id="face-img-fg" class="face-image" src="./face1.png" alt="Face Foreground"> 
+             </div> 
+ 
+             <div id="clock-view" class="immersive-subview" style="display: none; opacity: 0;"> 
+                 <div id="clock-time">00:00</div> 
+             </div> 
+ 
+         </div> 
+     </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            
+            /* ================= 全局视差交互 ================= */
+            const container = document.body;
+            const card = document.getElementById('glassCard');
+            const orb1 = document.getElementById('orb1');
+            const orb2 = document.getElementById('orb2');
+
+            container.addEventListener('mousemove', (e) => {
+                const xAxis = (window.innerWidth / 2 - e.pageX) / 25;
+                const yAxis = (window.innerHeight / 2 - e.pageY) / 25;
+                if(card && card.style.display !== 'none') {
+                    card.style.setProperty('--rotateY', `${xAxis}deg`);
+                    card.style.setProperty('--rotateX', `${-yAxis}deg`);
+                }
+                gsap.to(orb1, { x: -xAxis * 2, y: -yAxis * 2, duration: 1, ease: "power1.out" });
+                gsap.to(orb2, { x: xAxis * 3, y: yAxis * 3, duration: 1, ease: "power1.out" });
+            });
+
+            /* ================= Phase 1 & 2: 启动页到登录页转场逻辑 (保留原有逻辑) ================= */
+            const logoTextEl = document.getElementById('logoText');
+            const text = logoTextEl.innerText;
+            logoTextEl.innerHTML = '';
+            text.split('').forEach(char => {
+                const span = document.createElement('span');
+                span.className = 'logo-char';
+                span.innerText = char === ' ' ? '\u00A0' : char;
+                logoTextEl.appendChild(span);
+            });
+
+            const tl = gsap.timeline({ onComplete: () => { gsap.delayedCall(1, playTransitionToLogin); } });
+            tl.from("#glassCard", { duration: 1.2, scale: 0.7, opacity: 0, ease: "back.out(1.7)" })
+              .to(".dog-path", { duration: 2, strokeDashoffset: 0, ease: "power2.inOut" }, "-=0.3")
+              .add(() => { gsap.to(".dog-path", { duration: 2, scale: 1.03, transformOrigin: "center center", yoyo: true, repeat: -1, ease: "sine.inOut" }); })
+              .to(".logo-char", { duration: 0.6, opacity: 1, y: 0, filter: "blur(0px)", stagger: 0.05, ease: "back.out(2)" }, "-=1")
+              .to(".motto", { duration: 0.8, opacity: 1, y: 0, stagger: 0.2, ease: "power2.out" }, "-=0.2");
+
+            function playTransitionToLogin() {
+                const splashScreen = document.getElementById('screen-splash');
+                const loginScreen = document.getElementById('screen-login');
+                const transitionTl = gsap.timeline({ onComplete: () => { splashScreen.style.display = 'none'; } });
+                transitionTl.to(".motto", { duration: 0.5, y: 20, opacity: 0, stagger: 0.1, ease: "power2.in" })
+                .to("#glassCard", { duration: 0.6, scale: 0.8, opacity: 0, ease: "back.in(1.2)" }, "-=0.3")
+                .add(() => { loginScreen.style.display = 'flex'; gsap.set(loginScreen, { opacity: 1 }); }, "-=0.1")
+                .fromTo(".login-anim-hero", { opacity: 0, scale: 0.95, filter: "blur(12px)" }, { duration: 0.8, opacity: 1, scale: 1, filter: "blur(0px)", ease: "power2.out" }, "-=0.1")
+                .fromTo(".login-anim-ui", { opacity: 0, y: 35 }, { duration: 0.6, opacity: 1, y: 0, stagger: 0.12, ease: "back.out(1.5)" }, "-=0.4");
+            }
+
+            const loginTriggers = document.querySelectorAll('.login-trigger');
+            const agreeCheck = document.getElementById('agreeCheck');
+            loginTriggers.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!agreeCheck.checked) {
+                        gsap.fromTo('.custom-checkbox', { x: -5 }, { x: 5, duration: 0.05, yoyo: true, repeat: 5, clearProps: "x" });
+                        return;
+                    }
+                    if(btn.disabled) return;
+                    loginTriggers.forEach(b => b.disabled = true);
+                    playLoginSuccess();
+                });
+            });
+
+            function playLoginSuccess() {
+                const toast = document.getElementById('toastMsg');
+                gsap.to(toast, { duration: 0.3, opacity: 1, y: -10, ease: "power2.out" });
+                gsap.to(".toast-path", { duration: 0.5, strokeDashoffset: 0, ease: "power2.inOut", delay: 0.1 });
+                gsap.delayedCall(1.2, () => {
+                    gsap.to(toast, { duration: 0.3, opacity: 0, y: 10, ease: "power2.in" });
+                    playTransitionToMain();
+                });
+            }
+
+            function playTransitionToMain() {
+                const loginScreen = document.getElementById('screen-login');
+                const exitTl = gsap.timeline({ onComplete: () => {
+                    loginScreen.style.display = 'none';
+                    playMainScreenIn(); // 抽离出来的入场函数
+                }});
+                exitTl.to('.login-anim-ui', { y: 120, opacity: 0, duration: 0.5, stagger: 0.05, ease: "power3.in" })
+                      .to('.login-anim-hero', { y: 150, opacity: 0, scale: 0.9, duration: 0.6, ease: "power3.in" }, "-=0.4");
+            }
+
+
+            /* ================= 核心：主控台(Screen 3) 独立进出场逻辑 ================= */
+            const mainScreen = document.getElementById('screen-main');
+            
+            // 为了保证每次返回主界面都能触发动画，全部采用 fromTo (绝对状态变化)
+            function playMainScreenIn() {
+                mainScreen.style.display = 'flex';
+                gsap.set(mainScreen, { opacity: 1 });
+                const enterTl = gsap.timeline();
+                enterTl.fromTo(".main-anim-top", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" })
+                       .fromTo(".main-anim-btn", { x: 100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, stagger: 0.15, ease: "back.out(1.2)" }, "-=0.3")
+                       .fromTo(".main-anim-tab", { y: 100, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, "-=0.4");
+            }
+
+            /* ================= 视图路由与动态方向切换特效逻辑 ================= */ 
+             const tabs = document.querySelectorAll('.tab-item'); 
+             const btnBack = document.querySelector('.btn-back'); 
+             
+             // 构建所有视图的映射数组，确保索引顺序对应 (0: Home, 1: Status, 2: Settings) 
+             const views = [ 
+                 document.getElementById('view-home'), 
+                 document.getElementById('view-status'), 
+                 document.getElementById('view-settings') 
+             ]; 
+             
+             const batteryCounter = document.getElementById('battery-counter'); 
+             let currentViewIndex = 0; 
+  
+             const breatheAnim = gsap.to('.status-hero-img', { 
+                 y: -12, boxShadow: "0 22px 45px rgba(0,0,0,0.12)", 
+                 duration: 2.5, ease: "sine.inOut", yoyo: true, repeat: -1, paused: true 
+             }); 
+  
+             tabs.forEach(tab => { 
+                 tab.addEventListener('click', function() { 
+                     const targetIndex = parseInt(this.getAttribute('data-target')); 
+                     
+                     // 屏蔽重复点击 
+                     if (targetIndex === currentViewIndex) return; 
+  
+                     // 底部 Tab UI 变色及放大 
+                     tabs.forEach(t => t.classList.remove('active')); 
+                     this.classList.add('active'); 
+  
+                     const transitionTl = gsap.timeline(); 
+                     const currentView = views[currentViewIndex]; 
+                     const targetView = views[targetIndex]; 
+ 
+                     // 【核心炫技】：动态矢量方向算法 
+                     // 目标 > 当前：旧视图向左推，新视图从右入 (1) 
+                     // 目标 < 当前：旧视图向右推，新视图从左入 (-1) 
+                     const direction = targetIndex > currentViewIndex ? 1 : -1; 
+                     const slideOffset = 60 * direction; 
+                     
+                     // 1. 旧视图丝滑滑出 
+                     transitionTl.to(currentView, { 
+                         x: -slideOffset, opacity: 0, duration: 0.4, ease: "power2.inOut", 
+                         onStart: () => { 
+                             // 离开状态页时必须暂停呼吸特效释放 GPU 
+                             if (currentViewIndex === 1 && typeof breatheAnim !== 'undefined') { 
+                                 breatheAnim.pause(); 
+                             } 
+                             currentView.classList.remove('active'); 
+                         } 
+                     }) 
+                     // 2. 新视图推入，并分发专属入场特效 
+                     .fromTo(targetView, 
+                         { x: slideOffset, opacity: 0 }, 
+                         { x: 0, opacity: 1, duration: 0.5, ease: "power2.out", 
+                         onStart: () => { 
+                             targetView.classList.add('active'); 
+                             
+                             // ---- 独立视图专属入场钩子 ---- 
+                             if (targetIndex === 1) { 
+                                 // 切入状态页 
+                                 if (typeof breatheAnim !== 'undefined') breatheAnim.play(); 
+                                 if (btnBack) btnBack.style.display = 'flex'; 
+                                 let batteryObj = { val: 0 }; 
+                                 gsap.to(batteryObj, { 
+                                     val: 98, duration: 1.2, ease: "power3.out", delay: 0.1, 
+                                     onUpdate: () => { if(batteryCounter) batteryCounter.innerText = Math.round(batteryObj.val); } 
+                                 }); 
+                             } else if (targetIndex === 2) { 
+                                 // 切入设置页：内部元素自下而上交错入场 (Staggered Entry) 
+                                 if (btnBack) btnBack.style.display = 'none'; 
+                                 gsap.fromTo(".settings-anim-item", 
+                                     { y: 30, opacity: 0 }, 
+                                     { y: 0, opacity: 1, stagger: 0.08, duration: 0.6, ease: "back.out(1.2)", delay: 0.1 } 
+                                 ); 
+                             } else if (targetIndex === 0) { 
+                                 // 切入首页 
+                                 if (btnBack) btnBack.style.display = 'flex'; 
+                             } 
+                         } 
+                     }, "-=0.2"); // 时间轴重叠覆盖 
+                     
+                     // 更新当前索引指针 
+                     currentViewIndex = targetIndex; 
+                 }); 
+             });
+
+
+            /* ================= Phase 4: 小游戏生命周期逻辑 (炫技点) ================= */
+            
+            const btnInteraction = document.getElementById('btn-interaction');
+            const screenInteraction = document.getElementById('screen-interaction');
+            const btnInteractBack = document.getElementById('btn-interact-back');
+            const gameArea = document.getElementById('gameArea');
+            const moodScoreEl = document.getElementById('mood-score');
+            
+            let gameTimer = null;
+            let currentScore = 0;
+            
+            // 使用黑色极简纯色骨头 SVG
+            const boneSvgTemplate = `<svg viewBox="0 0 512 512" fill="#2c2c2c"><path d="M471.1 146.9c-36-31.5-89.9-22-113.3 16.3-14.7-5.5-31.2-4.5-45.6 2.3L191 214.2c-14.3-6.8-30.8-7.8-45.6-2.3-23.4-38.3-77.3-47.8-113.3-16.3-33.1 29-30 80 5.4 105.1-35.4 25.1-38.5 76.1-5.4 105.1 36 31.5 89.9 22 113.3-16.3 14.7 5.5 31.2 4.5 45.6-2.3l121.2-48.7c14.3 6.8 30.8 7.8 45.6 2.3 23.4 38.3 77.3 47.8 113.3 16.3 33.1-29 30-80-5.4-105.1 35.4-25.1 38.5-76.1 5.4-105.1z"/></svg>`;
+
+            // 1. 从主界面进入互动喂食界面
+            btnInteraction.addEventListener('click', () => {
+                const leaveMainTl = gsap.timeline({
+                    onComplete: () => {
+                        mainScreen.style.display = 'none';
+                        screenInteraction.style.display = 'flex';
+                        gsap.set(screenInteraction, { opacity: 1 });
+                        enterGameScreenAndStart();
+                    }
+                });
+                
+                // 主界面左侧加速滑出，底部掉出
+                leaveMainTl.to(".main-anim-btn", { x: -150, opacity: 0, duration: 0.5, stagger: 0.08, ease: "power2.in" })
+                           .to(".main-anim-top", { opacity: 0, duration: 0.3 }, "-=0.4")
+                           .to(".main-anim-tab", { y: 100, opacity: 0, duration: 0.5, ease: "power2.in" }, "-=0.5");
+            });
+
+            function enterGameScreenAndStart() {
+                const gameEnterTl = gsap.timeline();
+                // 顶部返回键和底部计分板顺滑切入
+                gameEnterTl.fromTo(".interact-anim-top", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" })
+                           .fromTo(".interact-anim-score", { y: 150, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "back.out(1.5)" }, "-=0.3")
+                           .add(startGameLoop, "-=0.2"); // 动画尾声启动骨头掉落
+            }
+
+            // 2. 核心系统：骨头生成与运动
+            function spawnBone() {
+                const bone = document.createElement('div');
+                bone.className = 'bone-item';
+                
+                // 随机大小 (70% - 130%) 和尺寸
+                const scale = 0.7 + Math.random() * 0.6;
+                const size = 60 * scale; 
+                bone.style.width = size + 'px';
+                bone.style.height = size + 'px';
+                
+                // 随机 X 轴生成范围，防止贴屏幕死角
+                const safeMargin = window.innerWidth * 0.1;
+                const randomX = safeMargin + Math.random() * (window.innerWidth - safeMargin * 2 - size);
+                bone.style.left = randomX + 'px';
+                bone.style.top = '-80px'; // 隐藏在屏幕顶部上方
+                
+                bone.innerHTML = boneSvgTemplate;
+                gameArea.appendChild(bone);
+
+                // --- 绑定击中事件 (核心 0 延迟体验) ---
+                // pointerdown 在移动端相当于极速响应的 touchstart，桌面端兼容 mousedown
+                bone.addEventListener('pointerdown', (e) => {
+                    e.preventDefault(); // 阻断默认滚动等操作
+                    if(bone.dataset.eaten === "true") return; // 防止连击
+                    bone.dataset.eaten = "true";
+                    
+                    // a. 打断下落动画
+                    gsap.killTweensOf(bone);
+                    
+                    // b. 心情值数据增长与 UI 跳动
+                    currentScore++;
+                    moodScoreEl.innerText = currentScore;
+                    gsap.fromTo(moodScoreEl, 
+                        { scale: 1 }, 
+                        { scale: 1.6, duration: 0.15, yoyo: true, repeat: 1, ease: "power1.out", clearProps: "scale" }
+                    );
+                    
+                    // c. 原地爆裂消失动画
+                    gsap.to(bone, { 
+                        scale: 1.5, opacity: 0, duration: 0.25, ease: "power2.out",
+                        onComplete: () => { if(bone.parentNode) bone.parentNode.removeChild(bone); }
+                    });
+                });
+
+                // --- 自由落体动画 (Game Loop 帧) ---
+                const dropDuration = 1.5 + Math.random() * 1; // 1.5s 到 2.5s 随机掉落时间
+                const rotateDeg = (Math.random() - 0.5) * 360; // 带有随机轻微旋转
+                
+                gsap.to(bone, {
+                    y: window.innerHeight + 150, // 掉出屏幕底部
+                    rotation: rotateDeg,
+                    duration: dropDuration,
+                    ease: "none", // 匀速下落最符合重力直觉
+                    onComplete: () => {
+                        // 掉出屏幕外，清理 DOM 释放内存
+                        if(bone.parentNode && !bone.dataset.eaten) {
+                            bone.parentNode.removeChild(bone);
+                        }
+                    }
+                });
+
+                // 递归排期下一根骨头 (随机间隔 200ms - 500ms)
+                gameTimer = setTimeout(spawnBone, 200 + Math.random() * 300);
+            }
+
+            function startGameLoop() {
+                // 初始化重置
+                currentScore = 0;
+                moodScoreEl.innerText = currentScore;
+                gameArea.innerHTML = ''; 
+                // 开启递归
+                spawnBone();
+            }
+
+            function stopGameLoopAndClean() {
+                clearTimeout(gameTimer);
+                // 杀死所有遗留骨头的动画，并暴力清场
+                const bones = document.querySelectorAll('.bone-item');
+                bones.forEach(b => {
+                    gsap.killTweensOf(b);
+                    if(b.parentNode) b.parentNode.removeChild(b);
+                });
+            }
+
+            // 3. 从互动喂食界面退回主界面
+            btnInteractBack.addEventListener('click', () => {
+                // 点击瞬间彻底终结游戏循环，避免内存泄漏
+                stopGameLoopAndClean(); 
+                
+                const returnTl = gsap.timeline({
+                    onComplete: () => {
+                        screenInteraction.style.display = 'none';
+                        playMainScreenIn(); // 复用上方重写好的主界面进场动画
+                    }
+                });
+                
+                // 顶部和底部 UI 顺滑撤出
+                returnTl.to(".interact-anim-top", { y: -30, opacity: 0, duration: 0.3, ease: "power2.in" })
+                        .to(".interact-anim-score", { y: 150, opacity: 0, duration: 0.4, ease: "power2.in" }, "-=0.1");
+            });
+
+            /* ================= Phase 5: 沉浸互动模式 (全屏横置 + 动效炫技版) ================= */ 
+              
+              const modeBtns = document.querySelectorAll('.mode-btn'); 
+              const screenImmersive = document.getElementById('screen-immersive'); 
+              const landscapeArea = document.getElementById('landscapeArea'); 
+              const btnImmersiveBack = document.getElementById('btn-immersive-back'); 
+              const faceImgBg = document.getElementById('face-img-bg'); 
+              const faceImgFg = document.getElementById('face-img-fg'); 
+              const clockTimeEl = document.getElementById('clock-time'); 
+              
+              // --- 状态与定时器管理 --- 
+              let immersiveIdleTimer = null; 
+              let realTimeClockInterval = null; 
+              let blinkTimer = null; // 新增：独立眨眼定时器 
+              let isClockState = false; 
+              
+              const totalFaces = 4; 
+              let currentFaceIdx = 1; 
+              const IDLE_TIMEOUT_MS = 20000; 
+ 
+              // 动态挂载最外层粒子容器（规避 90 度旋转陷阱） 
+              const particleContainer = document.createElement('div'); 
+              particleContainer.id = 'particle-container'; 
+              document.body.appendChild(particleContainer); 
+ 
+              // 纯代码构建的五角星 SVG 
+              const starSvg = `<svg viewBox="0 0 24 24" fill="#FFD700"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`; 
+ 
+              // --- 生命感微动效：呼吸动画实例 --- 
+              // 直接对表情容器做无尽 yoyo 缩放 
+              const faceBreathAnim = gsap.to('#face-view', { 
+                  scaleX: 1.02, scaleY: 0.98, 
+                  duration: 2, ease: "sine.inOut", 
+                  yoyo: true, repeat: -1, paused: true 
+              }); 
+ 
+              // --- 强制全屏 API 兼容封装 --- 
+              function enterFullscreen() { 
+                  const doc = document.documentElement; 
+                  try { 
+                      if (doc.requestFullscreen) doc.requestFullscreen(); 
+                      else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen(); 
+                  } catch (e) { console.warn("Fullscreen API block", e); } 
+              } 
+ 
+              function exitFullscreen() { 
+                  try { 
+                      if (document.fullscreenElement || document.webkitFullscreenElement) { 
+                          if (document.exitFullscreen) document.exitFullscreen(); 
+                          else if (document.webkitExitFullscreen) document.webkitExitFullscreen(); 
+                      } 
+                  } catch (e) { console.warn("Exit Fullscreen block", e); } 
+              } 
+  
+              // 1. 进入沉浸模式 
+              modeBtns.forEach(btn => { 
+                  btn.addEventListener('click', () => { 
+                      enterFullscreen(); // 强制全屏劫持 
+ 
+                      screenImmersive.style.display = 'block'; 
+                      gsap.fromTo(screenImmersive, 
+                          { clipPath: 'circle(0% at 50% 50%)', opacity: 1 }, 
+                          { clipPath: 'circle(150% at 50% 50%)', duration: 0.7, ease: 'power3.inOut' } 
+                      ); 
+  
+                      wakeUpToFace(); 
+                      startRealTimeClock(); 
+                  }); 
+              }); 
+  
+              // 2. 退出沉浸模式 
+              btnImmersiveBack.addEventListener('click', (e) => { 
+                  e.stopPropagation(); 
+                  
+                  exitFullscreen(); // 退出原生全屏 
+                  clearTimeout(immersiveIdleTimer); 
+                  clearInterval(realTimeClockInterval); 
+                  stopBlinking(); 
+                  faceBreathAnim.pause(); // 彻底释放 GPU 
+                  
+                  gsap.to(screenImmersive, { 
+                      opacity: 0, duration: 0.3, ease: 'power2.in', 
+                      onComplete: () => { 
+                          screenImmersive.style.display = 'none'; 
+                          gsap.set(screenImmersive, { clipPath: 'circle(0% at 50% 50%)', opacity: 1 }); 
+                      } 
+                  }); 
+              }); 
+  
+              // 3. 点击屏幕：爆星 + 事件路由 
+              landscapeArea.addEventListener('pointerdown', (e) => { 
+                  createBurst(e.clientX, e.clientY); // 物理坐标指尖爆星 
+ 
+                  if (isClockState) { 
+                      wakeUpToFace(); 
+                  } else { 
+                      switchFaceExpression(); 
+                      resetIdleTimer(); 
+                  } 
+              }); 
+  
+              // ================= 核心独立特效函数库 ================= 
+ 
+              // A. 指尖粒子魔法生成器 
+              function createBurst(x, y) { 
+                  const starCount = 5 + Math.floor(Math.random() * 4); // 5-8 颗星 
+                  for (let i = 0; i < starCount; i++) { 
+                      const star = document.createElement('div'); 
+                      star.className = 'star-particle'; 
+                      star.innerHTML = starSvg; 
+                      // 修正中心偏移 
+                      star.style.left = (x - 12) + 'px'; 
+                      star.style.top = (y - 12) + 'px'; 
+                      particleContainer.appendChild(star); 
+ 
+                      // 爆炸射线物理量 
+                      const endX = (Math.random() - 0.5) * 160; 
+                      const endY = (Math.random() - 0.5) * 160; 
+                      const endRot = (Math.random() - 0.5) * 360; 
+ 
+                      gsap.fromTo(star, 
+                          { scale: 0, opacity: 1 }, 
+                          { 
+                              x: endX, y: endY, rotation: endRot, 
+                              scale: 0.8 + Math.random() * 0.7, opacity: 0, 
+                              duration: 0.6, ease: "expo.out", 
+                              onComplete: () => { if (star.parentNode) star.parentNode.removeChild(star); } 
+                          }); 
+                  } 
+              } 
+ 
+              // B. 表情切换器 
+              function switchFaceExpression() { 
+                  currentFaceIdx = (currentFaceIdx % totalFaces) + 1; 
+                  const nextSrc = `./face${currentFaceIdx}.png`; 
+ 
+                  faceImgBg.src = nextSrc; 
+                  gsap.to(faceImgFg, { opacity: 0, duration: 0.12, onComplete: () => { 
+                      faceImgFg.src = nextSrc; 
+                      gsap.set(faceImgFg, { opacity: 1 }); 
+                  }}); 
+ 
+                  // 弹性缩放反馈 
+                  gsap.fromTo('#face-view', 
+                      { scaleX: 1.12, scaleY: 0.88 }, 
+                      { scaleX: 1, scaleY: 1, duration: 0.5, ease: 'elastic.out(1.3, 0.4)' } 
+                  ); 
+              } 
+ 
+              // C. 眨眼动画控制器 
+              function startBlinking() { 
+                  stopBlinking(); 
+                  scheduleBlink(); 
+              } 
+ 
+              function scheduleBlink() { 
+                  // 随机间隔 3-8 秒眨眼一次 
+                  blinkTimer = setTimeout(() => { 
+                      blink(); 
+                      scheduleBlink(); 
+                  }, 3000 + Math.random() * 5000); 
+              } 
+ 
+              function blink() { 
+                  gsap.to('#face-view', { scaleY: 0.96, duration: 0.08, yoyo: true, repeat: 1 }); 
+              } 
+ 
+              function stopBlinking() { 
+                  if (blinkTimer) { 
+                      clearTimeout(blinkTimer); 
+                      blinkTimer = null; 
+                  } 
+              } 
+ 
+              // D. 空闲状态管理 
+              function resetIdleTimer() { 
+                  clearTimeout(immersiveIdleTimer); 
+                  immersiveIdleTimer = setTimeout(() => { 
+                      enterSleepClockMode(); 
+                  }, IDLE_TIMEOUT_MS); 
+              } 
+ 
+              // E. 唤醒到表情状态 
+              function wakeUpToFace() { 
+                  isClockState = false; 
+                  resetIdleTimer(); 
+                  startBlinking(); 
+                  faceBreathAnim.play(); // 启动呼吸微动效 
+                  
+                  gsap.to('#clock-view', { y: 40, opacity: 0, duration: 0.25, ease: 'power2.in', onComplete: () => { 
+                      document.getElementById('clock-view').style.display = 'none'; 
+                  }}); 
+                  
+                  gsap.fromTo('#face-view', 
+                      { filter: 'blur(20px)', y: -60, opacity: 0, scale: 0.75 }, 
+                      { filter: 'blur(0px)', y: 0, opacity: 1, scale: 1, duration: 0.7, ease: 'back.out(1.4)' } 
+                  ); 
+              } 
+ 
+              // F. 进入睡眠时钟模式 
+              function enterSleepClockMode() { 
+                  isClockState = true; 
+                  stopBlinking(); 
+                  faceBreathAnim.pause(); // 暂停呼吸动画 
+                  
+                  gsap.to('#face-view', { filter: 'blur(15px)', y: 60, opacity: 0, duration: 0.5, ease: 'power2.in' }); 
+                  
+                  document.getElementById('clock-view').style.display = 'flex'; 
+                  gsap.fromTo('#clock-view', 
+                      { y: -80, opacity: 0, filter: 'blur(10px)' }, 
+                      { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.8, ease: 'power3.out', delay: 0.15 } 
+                  ); 
+              } 
+ 
+              // G. 实时时钟驱动 
+              function startRealTimeClock() { 
+                  clearInterval(realTimeClockInterval); 
+                  const updateTime = () => { 
+                      const now = new Date(); 
+                      const hh = String(now.getHours()).padStart(2, '0'); 
+                      const mm = String(now.getMinutes()).padStart(2, '0'); 
+                      clockTimeEl.innerText = `${hh}:${mm}`; 
+                  }; 
+                  updateTime(); 
+                  realTimeClockInterval = setInterval(updateTime, 1000); 
+              }
+
+        });
+    </script>
+</body>
+</html>
